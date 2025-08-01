@@ -23,29 +23,21 @@ const BorderControls: React.FC<BorderControlsProps> = ({ onBorderChange }) => {
     { name: 'Negro', value: '#000000' },
   ];
 
-  // Debounce function for performance optimization
-  const debounce = <T extends (...args: any[]) => any>(
-    func: T,
-    delay: number
-  ) => {
-    let timeoutId: NodeJS.Timeout;
-    return (...args: Parameters<T>) => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => func(...args), delay);
-    };
-  };
+  // Removed debounce function as it's now implemented inline
 
   // Debounced version of onBorderChange
-  const debouncedBorderChange = useCallback(
-    debounce((enabled: boolean, color: string, width: number) => {
+  const debouncedBorderChange = useCallback((enabled: boolean, color: string, width: number) => {
+    const timeoutId = setTimeout(() => {
       onBorderChange(enabled, color, width);
-    }, 300),
-    [onBorderChange]
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [onBorderChange]
   );
 
   // Effect to trigger border change when any parameter changes
   useEffect(() => {
-    debouncedBorderChange(borderEnabled, borderColor, borderWidth);
+    const cleanup = debouncedBorderChange(borderEnabled, borderColor, borderWidth);
+    return cleanup;
   }, [borderEnabled, borderColor, borderWidth, debouncedBorderChange]);
 
   // Handle checkbox change

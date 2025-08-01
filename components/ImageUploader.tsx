@@ -29,7 +29,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageProcessed, setIsPr
     }
   }, [originalImage, onOriginalImageChange]);
 
-  const handleFile = async (file: File) => {
+  const handleFile = useCallback(async (file: File) => {
     try {
       // Validate file type
       if (!file.type.startsWith('image/')) {
@@ -58,7 +58,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageProcessed, setIsPr
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [originalImage, onImageProcessed, setIsProcessing]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -69,7 +69,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageProcessed, setIsPr
         handleFile(e.dataTransfer.files[0]);
       }
     },
-    []
+    [handleFile]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
