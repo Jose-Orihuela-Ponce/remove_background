@@ -2,28 +2,37 @@
 
 import dynamic from 'next/dynamic';
 
-// Importar el componente dinámicamente para evitar errores de hidratación
-const BackgroundRemover = dynamic(
-  () => import('../components/BackgroundRemover'),
-  { ssr: false }
-);
+const BackgroundRemover = dynamic(() => import('../components/BackgroundRemover'), {
+  ssr: false,
+});
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <main className="px-12 mx-auto">
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-            Removedor de Fondos de Imágenes
-          </h1>
-          <p className="mt-3 max-w-2xl mx-auto text-xl text-gray-500 sm:mt-4">
-            Sube una imagen y elimina el fondo automáticamente
-          </p>
-        </div>
-        <BackgroundRemover />
+    <div className="min-h-screen px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+        <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-8 shadow-2xl shadow-cyan-950/20 backdrop-blur xl:p-10">
+          <div className="max-w-3xl">
+            <p className="mb-4 inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-cyan-200">
+              Procesamiento local
+            </p>
+            <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+              Removedor de fondos de imagenes
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
+              Sube una imagen, quita el fondo en el navegador y descarga el
+              resultado en PNG. Si quieres, agrega un borde tipo halo con color
+              y grosor personalizable.
+            </p>
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-5 shadow-2xl shadow-black/30 backdrop-blur sm:p-6 lg:p-8">
+          <BackgroundRemover />
+        </section>
       </main>
-      <footer className="mt-12 text-center text-gray-500 text-sm">
-        <p>Procesamiento 100% en el navegador - Sin envío de datos al servidor</p>
+
+      <footer className="mx-auto mt-8 max-w-6xl pb-4 text-center text-xs text-slate-400">
+        <p>Procesamiento 100% en el navegador, sin enviar archivos a un servidor.</p>
       </footer>
     </div>
   );
