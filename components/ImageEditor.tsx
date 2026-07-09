@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import BorderControls from './BorderControls';
 import ImageCanvas from './ImageCanvas';
 
@@ -10,12 +10,10 @@ interface ImageEditorProps {
 }
 
 const ImageEditor: React.FC<ImageEditorProps> = ({ processedImage, originalImage }) => {
-  const [borderEnabled, setBorderEnabled] = useState<boolean>(false);
-  const [borderColor, setBorderColor] = useState<string>('#FFFFFF');
-  const [borderWidth, setBorderWidth] = useState<number>(5);
+  const [borderEnabled, setBorderEnabled] = useState(false);
+  const [borderColor, setBorderColor] = useState('#FFFFFF');
+  const [borderWidth, setBorderWidth] = useState(5);
   const [finalImage, setFinalImage] = useState<string | null>(null);
-
-  const memoizedProcessedImage = useMemo(() => processedImage, [processedImage]);
 
   const handleBorderChange = useCallback((enabled: boolean, color: string, width: number) => {
     setBorderEnabled(enabled);
@@ -55,7 +53,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ processedImage, originalImage
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
           <p className="mb-3 text-sm font-medium text-slate-300">Sin fondo</p>
           <ImageCanvas
-            processedImage={memoizedProcessedImage}
+            processedImage={processedImage}
             borderEnabled={borderEnabled}
             borderColor={borderColor}
             borderWidth={borderWidth}

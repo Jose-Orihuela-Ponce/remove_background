@@ -2,10 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    domains: [],
     formats: ['image/webp', 'image/avif'],
-    unoptimized: true // Para evitar problemas con blob URLs
-  }
+    unoptimized: true
+  },
+  allowedDevOrigins: ['192.168.56.1']
 };
 
 export default nextConfig;

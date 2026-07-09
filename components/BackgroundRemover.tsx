@@ -1,15 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { preload, type Config } from '@imgly/background-removal';
 import ImageUploader from './ImageUploader';
 import ImageEditor from './ImageEditor';
-
-const backgroundRemovalConfig: Config = {
-  proxyToWorker: true,
-  rescale: true,
-  model: 'isnet_fp16',
-};
 
 const BackgroundRemover = () => {
   const [processedImage, setProcessedImage] = useState<string | null>(null);
@@ -18,7 +11,6 @@ const BackgroundRemover = () => {
   const [processingProgress, setProcessingProgress] = useState<number | null>(null);
   const [processingStage, setProcessingStage] = useState('Preparando procesamiento...');
 
-  // Cleanup URLs when component unmounts
   useEffect(() => {
     return () => {
       if (processedImage) URL.revokeObjectURL(processedImage);
@@ -26,36 +18,21 @@ const BackgroundRemover = () => {
     };
   }, [processedImage, originalImage]);
 
-  useEffect(() => {
-    preload(backgroundRemovalConfig).catch((error) => {
-      console.warn('Background removal preload failed:', error);
-    });
-  }, []);
-
-  // Handle processed image from ImageUploader
   const handleImageProcessed = (imageUrl: string) => {
     if (processedImage) URL.revokeObjectURL(processedImage);
     setProcessedImage(imageUrl);
   };
-  
-  // Handle original image from ImageUploader
-  const handleOriginalImageChange = (imageUrl: string | null) => {
-    setOriginalImage(imageUrl);
-  };
-
-  const handleProcessingStateChange = (progress: number | null, stage: string) => {
-    setProcessingProgress(progress);
-    setProcessingStage(stage);
-  };
-
 
   return (
     <div className="w-full mx-auto text-slate-100">
-      <ImageUploader 
+      <ImageUploader
         onImageProcessed={handleImageProcessed}
         setIsProcessing={setIsProcessing}
-        onOriginalImageChange={handleOriginalImageChange}
-        onProcessingStateChange={handleProcessingStateChange}
+        onOriginalImageChange={setOriginalImage}
+        onProcessingStateChange={(progress, stage) => {
+          setProcessingProgress(progress);
+          setProcessingStage(stage);
+        }}
       />
 
       {isProcessing && (
@@ -91,8 +68,8 @@ const BackgroundRemover = () => {
       {processedImage && originalImage && !isProcessing && (
         <div className="mt-6">
           <h3 className="mb-4 text-lg font-medium text-white">Resultado</h3>
-          <ImageEditor 
-            processedImage={processedImage} 
+          <ImageEditor
+            processedImage={processedImage}
             originalImage={originalImage}
           />
         </div>

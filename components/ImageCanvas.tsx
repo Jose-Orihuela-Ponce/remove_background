@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useState, useMemo } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 
 interface ImageCanvasProps {
   processedImage: string;
@@ -18,7 +18,7 @@ const ImageCanvas: React.FC<ImageCanvasProps> = ({
   onFinalImageChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const imageRef = useRef<HTMLImageElement | null>(null);
 
   const renderParams = useMemo(
     () => ({ processedImage, borderEnabled, borderColor, borderWidth }),
@@ -27,24 +27,19 @@ const ImageCanvas: React.FC<ImageCanvasProps> = ({
 
   useEffect(() => {
     const img = new Image();
-    img.src = processedImage;
+    imageRef.current = img;
+
     img.onload = () => {
-      setCanvasSize({ width: img.width, height: img.height });
-    };
-  }, [processedImage]);
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || canvasSize.width === 0 || canvasSize.height === 0) return;
+      canvas.width = img.width;
+      canvas.height = img.height;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const img = new Image();
-    img.src = renderParams.processedImage;
-    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       if (renderParams.borderEnabled && renderParams.borderWidth > 0) {
@@ -53,7 +48,15 @@ const ImageCanvas: React.FC<ImageCanvasProps> = ({
 
       onFinalImageChange(canvas.toDataURL('image/png'));
     };
-  }, [canvasSize, renderParams, onFinalImageChange]);
+
+    img.src = renderParams.processedImage;
+
+    return () => {
+      if (imageRef.current === img) {
+        imageRef.current = null;
+      }
+    };
+  }, [renderParams, onFinalImageChange]);
 
   const applyBorderEffect = (
     ctx: CanvasRenderingContext2D,
@@ -92,18 +95,10 @@ const ImageCanvas: React.FC<ImageCanvasProps> = ({
 
   return (
     <div className="relative flex min-h-[240px] items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.04)_25%,rgba(255,255,255,0.08)_25%,rgba(255,255,255,0.08)_50%,rgba(255,255,255,0.04)_50%,rgba(255,255,255,0.04)_75%,rgba(255,255,255,0.08)_75%)] bg-[length:20px_20px] p-2">
-      {canvasSize.width === 0 || canvasSize.height === 0 ? (
-        <div className="py-16 text-center text-sm text-slate-400">
-          Renderizando imagen procesada...
-        </div>
-      ) : (
-        <canvas
-          ref={canvasRef}
-          width={canvasSize.width}
-          height={canvasSize.height}
-          className="h-auto max-w-full object-contain"
-        />
-      )}
+      <canvas
+        ref={canvasRef}
+        className="h-auto max-w-full object-contain"
+      />
     </div>
   );
 };

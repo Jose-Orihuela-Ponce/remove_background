@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { removeBackground, type Config } from '@imgly/background-removal';
+import { removeBackground } from '@imgly/background-removal';
 
 const MAX_PROCESSING_SIZE = 1800;
 const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -12,6 +12,23 @@ interface ImageUploaderProps {
   onOriginalImageChange?: (originalImage: string | null) => void;
   onProcessingStateChange?: (progress: number | null, stage: string) => void;
 }
+
+const yieldToMain = () =>
+  new Promise<void>((resolve) => {
+    if ('scheduler' in window && 'yield' in (window as unknown as { scheduler: { yield: () => Promise<void> } }).scheduler) {
+      (window as unknown as { scheduler: { yield: () => Promise<void> } }).scheduler.yield().then(() => resolve());
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
+
+const getStageLabel = (key: string) => {
+  const normalized = key.toLowerCase();
+  if (normalized.includes('download') || normalized.includes('fetch')) return 'Descargando recursos';
+  if (normalized.includes('model')) return 'Cargando modelo';
+  if (normalized.includes('worker')) return 'Iniciando motor';
+  return 'Procesando imagen';
+};
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({
   onImageProcessed,
@@ -36,66 +53,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     }
   }, [originalImage, onOriginalImageChange]);
 
-  const waitForPaint = () =>
-    new Promise<void>((resolve) => {
-      requestAnimationFrame(() => resolve());
-    });
-
-  const resizeImageForProcessing = async (file: File) => {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, MAX_PROCESSING_SIZE / Math.max(bitmap.width, bitmap.height));
-
-    if (scale === 1) {
-      bitmap.close();
-      return file;
-    }
-
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-
-    const ctx = canvas.getContext('2d', { alpha: true });
-    if (!ctx) {
-      bitmap.close();
-      return file;
-    }
-
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close();
-
-    const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-
-    return new Promise<Blob>((resolve) => {
-      canvas.toBlob(
-        (blob) => {
-          resolve(blob ?? file);
-        },
-        outputType,
-        0.92
-      );
-    });
-  };
-
-  const getStageLabel = (key: string) => {
-    const normalized = key.toLowerCase();
-
-    if (normalized.includes('download') || normalized.includes('fetch')) {
-      return 'Descargando recursos';
-    }
-
-    if (normalized.includes('model')) {
-      return 'Cargando modelo';
-    }
-
-    if (normalized.includes('worker')) {
-      return 'Iniciando motor';
-    }
-
-    return 'Procesando imagen';
-  };
-
   const handleFile = useCallback(
     async (file: File) => {
       try {
@@ -112,24 +69,26 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         setIsProcessing(true);
         onProcessingStateChange?.(0, 'Preparando procesamiento...');
 
-        await waitForPaint();
-        onProcessingStateChange?.(8, 'Optimizando imagen...');
+        await yieldToMain();
+        onProcessingStateChange?.(5, 'Optimizando imagen...');
 
         const imageForProcessing = await resizeImageForProcessing(file);
 
-        const config: Config = {
-          proxyToWorker: true,
+        await yieldToMain();
+
+        const processedBlob = await removeBackground(imageForProcessing, {
+          proxyToWorker: false,
           rescale: true,
-          model: 'isnet_fp16',
-          progress: (key, current, total) => {
+          model: 'isnet_quint8',
+          progress: (key: string, current: number, total: number) => {
             const percent = total > 0 ? Math.min(99, Math.round((current / total) * 100)) : null;
             onProcessingStateChange?.(percent, getStageLabel(key));
           },
-        };
+        });
 
-        const processedBlob = await removeBackground(imageForProcessing, config);
         const processedUrl = URL.createObjectURL(processedBlob);
 
+        await yieldToMain();
         onProcessingStateChange?.(100, 'Imagen lista');
         onImageProcessed(processedUrl);
       } catch (err) {
@@ -147,7 +106,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
-
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         handleFile(e.dataTransfer.files[0]);
       }
@@ -166,11 +124,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     }
   };
 
-  const triggerFileInput = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
+  const triggerFileInput = () => fileInputRef.current?.click();
 
   return (
     <div className="w-full">
@@ -218,5 +172,40 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     </div>
   );
 };
+
+async function resizeImageForProcessing(file: File): Promise<Blob | File> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, MAX_PROCESSING_SIZE / Math.max(bitmap.width, bitmap.height));
+
+  if (scale === 1) {
+    bitmap.close();
+    return file;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+
+  const ctx = canvas.getContext('2d', { alpha: true });
+  if (!ctx) {
+    bitmap.close();
+    return file;
+  }
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+
+  const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+
+  return new Promise<Blob>((resolve) => {
+    canvas.toBlob(
+      (blob) => resolve(blob ?? file),
+      outputType,
+      0.92
+    );
+  });
+}
 
 export default ImageUploader;
